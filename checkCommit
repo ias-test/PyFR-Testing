@@ -1,0 +1,70 @@
+#!/usr/bin/python2
+
+
+__root="__testing__"
+virtualenv="virtualenv2"
+
+class DuplicateIdError(Exception):
+    pass
+class MkdirError(Exception):
+    pass
+class CheckoutError(Exception):
+    pass
+class ResetError(Exception):
+    pass
+class EnvError(Exception):
+    pass
+class InstallError(Exception):
+    pass
+class SymlinkError(Exception):
+    pass
+class LoadRunError(Exception):
+    pass
+
+class CreateRunError(Exception):
+    pass
+
+def execute(command,wd,ErrorClass,shell=False):
+    print "executing :\033[31m"+" ".join(command)+"\033[0m at \033[33m",wd,"\033[0m"
+    import subprocess
+    with open(wd+"/"+command[0]+".out","w+") as fh:
+        p=subprocess.Popen(command,shell=shell,cwd=wd,stderr=subprocess.PIPE,stdout=fh)
+    p.wait()
+    if(p.returncode !=0):
+        raise ErrorClass("Error executing '"+" ".join(command)+"': "+p.stderr.read())
+
+
+def createRepo(args):
+    import os
+    wd=os.path.abspath(os.path.dirname(__file__))+"/"+__root+"/"+args.mid
+    if(os.path.exists(wd)):
+        raise DuplicateIdError
+    try:
+        os.makedirs(wd)
+    except Exception as e:
+        raise MkdirError
+
+    execute(("git","clone",args.clone,"checkOut"),wd,ErrorClass=CheckoutError)
+    execute(("git","reset","--hard",args.sha),wd=wd+"/checkOut",ErrorClass=ResetError)
+    execute((virtualenv,"installRoot"),wd=wd,ErrorClass=EnvError)
+    try:
+        os.symlink("../../scripts/install",wd+"/install")
+        os.symlink("../../scripts/createRuns",wd+"/createRuns")
+        os.symlink("../../scripts/loadRuns",wd+"/loadRuns")
+    except Exception as e:
+        raise SymlinkError
+    execute(("./install",),wd=wd,ErrorClass=InstallError,shell=True)
+    execute(("./createRuns",),wd=wd,ErrorClass=CreateRunError,shell=True)
+    execute(("./loadRuns",),wd=wd,ErrorClass=LoadRunError,shell=True)
+
+
+if(__name__=="__main__"):
+    from argparse import ArgumentParser
+    parser=ArgumentParser()
+    parser.add_argument("-i","--id",help="merge-id",dest='mid',type=str,required=True)
+    parser.add_argument("-s","--sha",help="commit sha",dest="sha",type=str,required=True)
+    parser.add_argument("-c","--clone",help="clone repo",dest="clone",type=str,required=True)
+
+    args=parser.parse_args()
+    createRepo(args)
+    

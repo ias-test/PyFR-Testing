@@ -1,0 +1,60 @@
+#!/bin/bash
+
+. installRoot/bin/activate
+mkdir -p examples
+cd examples
+
+PRECISION=("dp" "sp")
+PLATFORMS=("OpenMP" "CUDA" "OpenCL")
+PARALLEL=("serial" "parallel")
+EXAMPLES=$(ls $EXAMPLE_REPO)
+
+for e in ${EXAMPLES[@]}
+do
+	mkdir $e
+	pushd ${PWD}>/dev/null
+	cd $e
+	cp -r $EXAMPLE_REPO/$e/${e}.msh $EXAMPLE_REPO/$e/${e}.ini ./ 
+	for p in ${PRECISION[@]}
+	do
+		mkdir $e-$p
+		pushd ${PWD}>/dev/null		
+		cd $e-$p
+		cp ../${e}.msh ./
+		if [ "$p" == "sp" ];then
+			sed 's/^precision.*/precision = single/' ../${e}.ini >${e}.ini
+		else
+			sed 's/^precision.*/precision = double/' ../${e}.ini >${e}.ini
+
+		fi
+
+		for a in ${PLATFORMS[@]} 
+		do
+			mkdir $e-$p-$a
+			pushd ${PWD}>/dev/null
+			cd $e-$p-$a
+			cp ../${e}.msh ./
+			cp ../${e}.ini ./
+
+			for q in ${PARALLEL[@]}
+			do
+				mkdir $e-$p-$a-$q
+				pushd ${PWD}>/dev/null
+				cd $e-$p-$a-$q
+				cp ../${e}.msh ./${e}-${p}-${a}-${q}.msh
+				cp ../${e}.ini ./${e}-${p}-${a}-${q}.ini
+				../../../getRun ${e} ${p} ${a} ${q} >run
+				chmod +x ./run
+				rm ${e}.msh ${e}.ini			
+				popd >/dev/null
+			done
+			rm ${e}.msh ${e}.ini			
+			popd >/dev/null
+			
+		done
+		rm ${e}.msh ${e}.ini
+		popd >/dev/null
+	done
+	rm ${e}.msh ${e}.ini
+	popd >/dev/null
+done

@@ -1,0 +1,17 @@
+#!/usr/bin/python2
+
+import github
+import git
+from pprint import pprint
+import os
+testuser="ias-test"
+testpass="th1818pyfrte8t1ng"
+tg=github.Github(testuser,testpass)
+
+user=tg.get_user()
+repo=user.get_repo("PyFR")
+
+for p in repo.get_pulls():
+    print "ts",os.path.abspath(os.getcwd())+"/checkCommit","-i",p.merge_commit_sha,"-c",p.raw_data["head"]["repo"]['clone_url'],"-s",p.raw_data["head"]["sha"]
+
+

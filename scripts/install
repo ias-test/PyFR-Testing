@@ -1,0 +1,3 @@
+. installRoot/bin/activate
+cd checkOut
+python setup.py install
