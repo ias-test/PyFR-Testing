@@ -1,3 +1,5 @@
 . installRoot/bin/activate
-cd checkOut
+cd PyFR
+log 'begin-install'
 python setup.py install
+log 'end-install'

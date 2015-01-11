@@ -1,0 +1,23 @@
+#!/bin/bash
+
+git status 1>/dev/null 2>&1
+if [ $? -ne 0 ];then
+	echo "Not a git archive" >&2
+	exit 1
+fi
+
+ROOT=$(git rev-parse --show-toplevel)
+cd $ROOT
+if [ ! -d pyfr ];then
+	echo "Not a PyFR archive" >&2
+	exit 2
+fi
+TAG=$(git rev-parse HEAD)
+
+git archive -o ${TAG}.tar HEAD
+git show -s --format="{%n'Commit-hash':'%H',%n'Commit-Date':'%ci',%n'Commit-hash-abbr':'%h',%n'Tree-hash':'%T',%n'Author-name':'%an',%n'Author-email':'%ae',%n'Subject':'''%s''',%n'Body':'''%b''',%n'Notes':'''%N'''%n}" ${TAG} >_info
+#echo ${TAG} >>_info
+
+tar --append --file=${TAG}.tar _info
+
+gzip -c ${TAG}.tar | ssh pyfr-test@localhost './checkInbox'

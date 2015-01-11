@@ -1,0 +1,16 @@
+#!/usr/bin/python2
+
+import os
+import ast
+import time
+
+
+timeLine={}
+with open('__log','r') as fh:
+    ds="{"+fh.read()+"}"
+    d=ast.literal_eval(ds)
+
+    for dd in d:
+        time.strptime(d[dd],"")
+    
+

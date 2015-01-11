@@ -1,0 +1,66 @@
+#!/bin/bash
+
+
+
+EXAMPLE=$1
+PRECISION=$2
+PLATFORM=$3
+PARALLEL=$4
+TAG=$5
+WD=$6
+
+NP=2
+
+echo -e "#!/bin/bash\n\n\n"
+echo -e ". ${WD}/installRoot/bin/activate\n\n" 
+
+echo 'CASE=$(dirname $(readlink -f $0))'
+echo 'cd $CASE'
+if [ ${PARALLEL} == "serial" ];then
+	echo "log 'begin-mesh-conv $TAG'"
+	echo "$(which pyfr-mesh) convert ${TAG}.msh ${TAG}.pyfrm 1>>mesh-imp.log 2>mesh-imp.err"
+cat <<EOF
+if [ \$? -ne 0 ];then
+	echo "Mesh convert error" >&2
+	exit 1
+fi
+EOF
+	echo "log 'end-mesh-conv $TAG'"
+	echo "log 'begin-simulation $TAG'"
+	echo "/usr/bin/time --format \"{'elapsed':%e,'kernel-time':%S,'user-time':%U,'CPU-percent': %P,'MaxMemory':%M, 'AverageMemory':%K }\" -o sim.time $(which pyfr-sim) -v -n 10 -b $PLATFORM run  ${TAG}.pyfrm ${TAG}.ini 1>sim.log 2>sim.err"
+cat <<EOF
+if [ \$? -ne 0 ];then
+	echo "Simulation error" >&2
+	exit 1
+fi
+EOF
+	echo "log 'end-simulation $TAG'"
+else
+	echo "log 'begin-mesh-conv $TAG'"
+	echo "$(which pyfr-mesh) convert ${TAG}.msh ${TAG}.pyfrm 1>mesh-imp.log 2>mesh-imp.err"
+cat <<EOF
+if [ \$? -ne 0 ];then
+	echo "Mesh convert error" >&2
+	exit 1
+fi
+EOF
+	echo "log 'end-mesh-conv $TAG'"
+	echo "log 'begin-mesh-part $TAG'"
+	echo "$(which pyfr-mesh) partition $NP ${TAG}.pyfrm . 1>mesh-part.log 2>mesh-part.err"
+cat <<EOF
+if [ \$? -ne 0 ];then
+	echo "Mesh partition error" >&2
+	exit 1
+fi
+EOF
+	echo "log 'end-mesh-part $TAG'"
+	echo "log 'begin-simulation $TAG'"
+	echo "/usr/bin/time --format \"{'elapsed':%e,'kernel-time':%S,'user-time':%U,'CPU-percent': %P,'MaxMemory':%M, 'AverageMemory':%K }\" -o sim.time mpirun -np $NP $(which pyfr-sim) -v -n 10 -b $PLATFORM run ${TAG}.pyfrm ${TAG}.ini 1>sim.log 2>sim.err "
+cat <<EOF
+if [ \$? -ne 0 ];then
+	echo "Simulation error" >&2
+	exit 1
+fi
+EOF
+	echo "log 'end-simulation $TAG'"
+fi

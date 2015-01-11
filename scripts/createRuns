@@ -1,20 +1,31 @@
 #!/bin/bash
 
+ROOT=$(dirname $(readlink -f $0))
+WD=${PWD}
+
 . installRoot/bin/activate
-mkdir -p examples
-cd examples
+
+mkdir -p tests
+cd tests
+
+log 'begin-create'
+
 
 PRECISION=("dp" "sp")
 PLATFORMS=("OpenMP" "CUDA" "OpenCL")
 PARALLEL=("serial" "parallel")
-EXAMPLES=$(ls $EXAMPLE_REPO)
+
+TEST_REPO=${ROOT}/../Tests
+EXAMPLES=$(ls ${TEST_REPO})
+
+CBLAS='/usr/lib64/libcblas.so'
 
 for e in ${EXAMPLES[@]}
 do
 	mkdir $e
 	pushd ${PWD}>/dev/null
 	cd $e
-	cp -r $EXAMPLE_REPO/$e/${e}.msh $EXAMPLE_REPO/$e/${e}.ini ./ 
+	cp -r $TEST_REPO/$e/${e}.msh $TEST_REPO/$e/${e}.ini ./ 
 	for p in ${PRECISION[@]}
 	do
 		mkdir $e-$p
@@ -34,7 +45,11 @@ do
 			pushd ${PWD}>/dev/null
 			cd $e-$p-$a
 			cp ../${e}.msh ./
-			cp ../${e}.ini ./
+			if [ $a == OpenMP ];then
+				sed "s_.*cblas-st.*_cblas-st = ${CBLAS}_" ../${e}.ini >${e}.ini
+			else
+				cp ../${e}.ini ./
+			fi
 
 			for q in ${PARALLEL[@]}
 			do
@@ -43,9 +58,10 @@ do
 				cd $e-$p-$a-$q
 				cp ../${e}.msh ./${e}-${p}-${a}-${q}.msh
 				cp ../${e}.ini ./${e}-${p}-${a}-${q}.ini
-				../../../getRun ${e} ${p} ${a} ${q} >run
-				chmod +x ./run
-				rm ${e}.msh ${e}.ini			
+				${ROOT}/getRun ${e} ${p} ${a} ${q} ${e}-${p}-${a}-${q} ${WD} >run
+				${ROOT}/getPostProcess ${e} ${p} ${a} ${q} ${e}-${p}-${a}-${q} $WD >runPP
+				chmod +x ./run ./runPP
+				#rm ${e}.msh ${e}.ini			
 				popd >/dev/null
 			done
 			rm ${e}.msh ${e}.ini			
@@ -58,3 +74,5 @@ do
 	rm ${e}.msh ${e}.ini
 	popd >/dev/null
 done
+
+log 'end-create'

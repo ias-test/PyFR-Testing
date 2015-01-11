@@ -1,0 +1,49 @@
+#!/bin/bash
+
+ROOT=$(dirname $(readlink -f $0))
+WD=${PWD}
+
+
+. installRoot/bin/activate
+
+
+
+PRECISION=("dp" "sp")
+#PLATFORMS=("OpenMP" "CUDA" "OpenCL")
+PLATFORMS=("OpenMP")
+PARALLEL=("serial" "parallel")
+TEST_REPO=${ROOT}/../Tests
+EXAMPLES=$(ls ${TEST_REPO})
+
+
+
+#log 'start-load-runs'
+#for e in ${EXAMPLES[@]}
+#do
+#	for p in ${PRECISION[@]}
+#	do
+#		for a in ${PLATFORMS[@]} 
+#		do
+#			for q in ${PARALLEL[@]}
+#			do
+#				ts $WD/tests/$e/$e-$p/$e-$p-$a/$e-$p-$a-$q/run
+#			done
+#		done
+#	done
+#done
+#log 'end-load-runs'
+log 'start-load-pp'
+for e in ${EXAMPLES[@]}
+do
+	for p in ${PRECISION[@]}
+	do
+		for a in ${PLATFORMS[@]} 
+		do
+			for q in ${PARALLEL[@]}
+			do
+				ts $WD/tests/$e/$e-$p/$e-$p-$a/$e-$p-$a-$q/runPP $WD $e-$p-$a-$q
+			done
+		done
+	done
+done
+log 'end-load-pp'

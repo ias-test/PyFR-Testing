@@ -1,0 +1,26 @@
+#!/bin/bash
+
+EXAMPLE=$1
+PRECISION=$2
+PLATFORM=$3
+PARALLEL=$4
+TAG=$5
+WD=$6
+
+ROOT=$(dirname $(readlink -f $0))
+TEST_ROOT=${ROOT}/../Tests
+
+echo -e "#!/bin/bash\n\n\n"
+echo -e ". ${WD}/installRoot/bin/activate\n\n" 
+
+echo 'CASE=$(dirname $(readlink -f $0))'
+echo 'cd $CASE'
+echo
+echo
+
+
+echo "log 'begin-postPP $TAG'"
+echo $TEST_ROOT/$EXAMPLE/postProcessScripts/run
+echo "log 'end-postPP $TAG'"
+
+

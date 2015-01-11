@@ -1,0 +1,81 @@
+#!/usr/bin/python2
+
+
+__root="__testing"
+virtualenv="virtualenv2"
+
+class DuplicateIdError(Exception):
+    pass
+class MkdirError(Exception):
+    pass
+class ArchiveError(Exception):
+    pass
+class MoveError(Exception):
+    pass
+class EnvError(Exception):
+    pass
+class InstallError(Exception):
+    pass
+class SymlinkError(Exception):
+    pass
+class LoadRunError(Exception):
+    pass
+
+class CreateRunError(Exception):
+    pass
+
+def execute(command,wd,ErrorClass,shell=False):
+    print "executing :\033[31m"+" ".join(command)+"\033[0m at \033[33m",wd,"\033[0m"
+    import subprocess
+    with open(wd+"/"+command[0]+".out","w+") as fh:
+        p=subprocess.Popen(command,shell=shell,cwd=wd,stderr=subprocess.PIPE,stdout=fh)
+    p.wait()
+    if(p.returncode !=0):
+        raise ErrorClass("Error executing '"+" ".join(command)+"': "+p.stderr.read())
+
+
+def createArchive(tag):
+    import os,shutil
+    root=os.path.abspath(os.path.dirname(__file__))
+    wd=root+"/"+__root+"/"+tag
+    if(os.path.exists(wd)):
+        raise DuplicateIdError
+
+    try:
+        os.makedirs(wd)
+        os.makedirs(wd+"/PyFR")
+    except Exception as e:
+        raise MkdirError
+    try:
+        shutil.move(root+"/__inbox/"+tag,wd+"/PyFR")
+    except Exception as e:
+        raise MoveError(str(e))
+
+    execute(("tar","-z","-x","--file",tag),wd=wd+"/PyFR",ErrorClass=ArchiveError)
+
+    execute((virtualenv,"installRoot"),wd=wd,ErrorClass=EnvError)
+    with open(wd+"/installRoot/bin/activate","a")as fh:
+        fh.write("""function log()
+{
+    TAG=$1
+    DATE=$(date +%%Y-%%m-%%d_%%H:%%M:%%S)
+    echo "'$TAG':'$DATE'," >>%s/__log
+}
+
+"""%wd)
+    
+    try:
+        os.symlink("../../scripts/install",wd+"/install")
+        os.symlink("../../scripts/createRuns",wd+"/createRuns")
+        os.symlink("../../scripts/loadRuns",wd+"/loadRuns")
+    except Exception as e:
+        raise SymlinkError
+    execute(("./install",),wd=wd,ErrorClass=InstallError,shell=True)
+    execute(("./createRuns",),wd=wd,ErrorClass=CreateRunError,shell=True)
+    execute(("./loadRuns",),wd=wd,ErrorClass=LoadRunError,shell=True)
+
+
+if(__name__=="__main__"):
+    import sys
+    createArchive(sys.argv[1])
+    

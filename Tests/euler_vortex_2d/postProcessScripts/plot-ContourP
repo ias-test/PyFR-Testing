@@ -1,0 +1,162 @@
+#!/usr/bin/python2
+
+
+#### import the simple module from the para view
+from paraview.simple import *              
+import numpy as np
+
+def cmap(minV,maxV):
+    c=[[0.278431, 0.278431, 0.858824] ,
+            [0.0,      0.0,      0.360784] ,
+            [0.0,      1.0,      1.0] ,
+            [0.0,      0.501961, 0.0] ,
+            [1.0,      1.0,      0.0] ,
+            [1.0,      0.380392, 0.0] ,
+            [0.419608, 0.0,      0.0] ,
+            [0.878431, 0.301961, 0.301961]]
+    v=np.linspace(minV,maxV,len(c))
+    v=v.reshape(len(c),1)
+    c=np.array(c)
+    vc=np.hstack([v,c])
+    return vc.flatten()
+                                           
+def drawContour(inpFile,outFile):
+    #### disable automatic camera reset on 'Show'
+    paraview.simple._DisableFirstRenderCameraReset()
+    
+    # create a new 'XML Unstructured Grid Reader'
+    testvtu = XMLUnstructuredGridReader(FileName=[inpFile])
+    testvtu.PointArrayStatus = ['Pressure', 'Velocity', 'Pressure']
+    
+    # get active view
+    renderView1 = GetActiveViewOrCreate('RenderView')
+    # uncomment following to set a specific view size
+    # renderView1.ViewSize = [969, 526]
+
+    minV=1.7
+    maxV=4.4
+    N=11
+    
+    # show data in view
+    testvtuDisplay = Show(testvtu, renderView1)
+    # trace defaults for the display properties.
+    testvtuDisplay.ColorArrayName = [None, '']
+    testvtuDisplay.ScalarOpacityUnitDistance = 1.845486304345525
+    
+    # reset view to fit data
+    renderView1.ResetCamera()
+    
+    #changing interaction mode based on data extents
+    renderView1.InteractionMode = '2D'
+    renderView1.CameraPosition = [0.0, 0.0, 10000.0]
+    
+    # set scalar coloring
+    ColorBy(testvtuDisplay, ('POINTS', 'Pressure'))
+    
+    # rescale color and/or opacity maps used to include current data range
+    testvtuDisplay.RescaleTransferFunctionToDataRange(True)
+    
+    # show color bar/color legend
+    testvtuDisplay.SetScalarBarVisibility(renderView1, True)
+    
+    
+    # get color transfer function/color map for 'Velocity'
+    velocityLUT = GetColorTransferFunction('Pressure')
+
+    velocityLUT.RGBPoints= cmap(minV,maxV)
+    velocityLUT.ColorSpace = 'RGB'
+    velocityLUT.NanColor = [1.0, 1.0, 0.0]
+    velocityLUT.ScalarRangeInitialized = 1.0
+    
+    
+    # Properties modified on renderView1
+    renderView1.OrientationAxesVisibility = 0
+    
+    
+    # Properties modified on velocityLUT
+    velocityLUT.NumberOfTableValues = N-1
+    
+    
+    
+    # create a new 'Contour'
+    contour1 = Contour(Input=testvtu)
+    contour1.ContourBy = ['POINTS', 'Pressure']
+    contour1.PointMergeMethod = 'Uniform Binning'
+    
+    # show data in view
+    contour1Display = Show(contour1, renderView1)
+    # trace defaults for the display properties.
+    contour1Display.AmbientColor = [0.0, 0.0, 0.0]
+    contour1Display.ColorArrayName = [None, '']
+    contour1Display.CubeAxesColor = [0.0, 0.0, 0.0]
+    
+    
+    # set active source
+    SetActiveSource(testvtu)
+    
+    # show data in view
+    testvtuDisplay = Show(testvtu, renderView1)
+    
+    # show color bar/color legend
+    testvtuDisplay.SetScalarBarVisibility(renderView1, True)
+
+    # Properties modified on contour1
+    contour1.Isosurfaces = np.linspace(minV,maxV,N)
+    
+    # set active source
+    SetActiveSource(contour1)
+    
+    
+    # Properties modified on renderView1
+    renderView1.Background = [1.0, 1.0, 1.0]
+    
+    # Properties modified on contour1Display
+    contour1Display.LineWidth = 2.0
+    
+    # set active source
+    SetActiveSource(testvtu)
+    
+    # get color legend/bar for velocityLUT in view renderView1
+    velocityLUTColorBar = GetScalarBar(velocityLUT, renderView1)
+    velocityLUTColorBar.Position = [0.9, 0.12047619047619049]
+    velocityLUTColorBar.Position2 = [0.12, 0.7004761904761906]
+    velocityLUTColorBar.Title = 'Pressure'
+    velocityLUTColorBar.ComponentTitle = None
+    velocityLUTColorBar.TitleColor = [0.0, 0.0, 0.0]
+    velocityLUTColorBar.LabelColor = [0.0, 0.0, 0.0]
+    
+    # Properties modified on velocityLUTColorBar
+    velocityLUTColorBar.TitleColor = [0.0, 0.0, 0.0]
+    velocityLUTColorBar.LabelColor = [0.0, 0.0, 0.0]
+    
+    # Properties modified on velocityLUTColorBar
+    velocityLUTColorBar.TitleFontSize = 8
+    velocityLUTColorBar.LabelFontSize = 8
+    
+    # reset view to fit data
+    renderView1.ResetCamera()
+    
+    #### saving camera placements for all active views
+    
+    # current camera placement for renderView1
+    renderView1.InteractionMode = '2D'
+    renderView1.CameraPosition = [0.0, 0.0, 54.64101615137755]
+    renderView1.CameraParallelScale = 14.142135623730951
+    
+    #### uncomment the following to render all views
+    # RenderAllViews()
+    # alternatively, if you want to write images, you can use SaveScreenshot(...).
+    
+    
+    SaveScreenshot(outFile, magnification=4, quality=100, view=renderView1)
+
+
+
+if(__name__=="__main__"):
+    from argparse import ArgumentParser
+    parser=ArgumentParser()
+    parser.add_argument('-i',"--input",required=True,dest="inpFile",type=str)
+    parser.add_argument('-o',"--output",required=True,dest="outFile",type=str)
+
+    args=parser.parse_args()
+    drawContour(args.inpFile,args.outFile)

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+
+ROOT=$(dirname $(readlink -f $0))
+
+TAG=`uuidgen`
+mkdir -p ${ROOT}/__inbox
+cat >~/.tmp_${TAG}.tar.gz
+mv ~/.tmp_${TAG}.tar.gz ${ROOT}/__inbox/${TAG}
+
+
