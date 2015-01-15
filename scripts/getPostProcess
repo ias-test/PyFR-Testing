@@ -1,17 +1,30 @@
 #!/bin/bash
 
-EXAMPLE=$1
-PRECISION=$2
-PLATFORM=$3
-PARALLEL=$4
-TAG=$5
-WD=$6
+
+TEST=$1
+BACKEND=$2
+SERIAL=$3
+PRECISION=$4
+TAG=$TEST-$BACKEND-$SERIAL-$PRECISION
+
+WD=$PWD
 
 ROOT=$(dirname $(readlink -f $0))
 TEST_ROOT=${ROOT}/../Tests
 
 echo -e "#!/bin/bash\n\n\n"
+
+
 echo -e ". ${WD}/installRoot/bin/activate\n\n" 
+
+cat <<EOF
+function log()
+{
+	TAG=\$1
+	DATE=\$(date +%Y-%m-%d_%H:%M:%S)
+    	echo "'\$TAG':'\$DATE'," >>$WD/__log
+}
+EOF
 
 echo 'CASE=$(dirname $(readlink -f $0))'
 echo 'cd $CASE'
@@ -20,7 +33,11 @@ echo
 
 
 echo "log 'begin-postPP $TAG'"
-echo $TEST_ROOT/$EXAMPLE/postProcessScripts/run
+echo "export TAG=$TAG"
+echo "export WD=$WD"
+echo "export TEST=$TEST"
+
+echo "scons -j 16 -Q && touch \$1"
 echo "log 'end-postPP $TAG'"
 
 

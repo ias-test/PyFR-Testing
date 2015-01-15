@@ -4,11 +4,16 @@
 #### import the simple module from the para view
 from paraview.simple import *              
 import numpy as np
-from common import getPalette
 
 def cmap(minV,maxV):
-    c=getPalette(minV,maxV)
-
+    c=[[0.278431, 0.278431, 0.858824] ,
+            [0.0,      0.0,      0.360784] ,
+            [0.0,      1.0,      1.0] ,
+            [0.0,      0.501961, 0.0] ,
+            [1.0,      1.0,      0.0] ,
+            [1.0,      0.380392, 0.0] ,
+            [0.419608, 0.0,      0.0] ,
+            [0.878431, 0.301961, 0.301961]]
     v=np.linspace(minV,maxV,len(c))
     v=v.reshape(len(c),1)
     c=np.array(c)
@@ -21,16 +26,16 @@ def drawContour(inpFile,outFile):
     
     # create a new 'XML Unstructured Grid Reader'
     testvtu = XMLUnstructuredGridReader(FileName=[inpFile])
-    testvtu.PointArrayStatus = ['Density', 'Velocity', 'Pressure']
+    testvtu.PointArrayStatus = ['Pressure', 'Velocity', 'Pressure']
     
     # get active view
     renderView1 = GetActiveViewOrCreate('RenderView')
     # uncomment following to set a specific view size
     # renderView1.ViewSize = [969, 526]
 
-    minV=-0.6
-    maxV=2.6
-    N=20
+    minV=1e5+20-5
+    maxV=1e5+20+5
+    N=11
     
     # show data in view
     testvtuDisplay = Show(testvtu, renderView1)
@@ -46,7 +51,7 @@ def drawContour(inpFile,outFile):
     renderView1.CameraPosition = [0.0, 0.0, 10000.0]
     
     # set scalar coloring
-    ColorBy(testvtuDisplay, ('POINTS', 'Velocity'))
+    ColorBy(testvtuDisplay, ('POINTS', 'Pressure'))
     
     # rescale color and/or opacity maps used to include current data range
     testvtuDisplay.RescaleTransferFunctionToDataRange(True)
@@ -56,14 +61,12 @@ def drawContour(inpFile,outFile):
     
     
     # get color transfer function/color map for 'Velocity'
-    velocityLUT = GetColorTransferFunction('Velocity')
+    velocityLUT = GetColorTransferFunction('Pressure')
 
     velocityLUT.RGBPoints= cmap(minV,maxV)
     velocityLUT.ColorSpace = 'RGB'
     velocityLUT.NanColor = [1.0, 1.0, 0.0]
     velocityLUT.ScalarRangeInitialized = 1.0
-    velocityLUT.VectorMode = 'Component'
-    velocityLUT.VectorComponent = 1
     
     
     # Properties modified on renderView1
@@ -74,18 +77,10 @@ def drawContour(inpFile,outFile):
     velocityLUT.NumberOfTableValues = N-1
     
     
-    # create a new 'Calculator'
-    calculator1 = Calculator(Input=testvtu)
-    calculator1.Function = ''
-    
-    # Properties modified on calculator1
-    calculator1.ResultArrayName = 'Vy'
-    calculator1.Function = 'Velocity_Y'
-    
     
     # create a new 'Contour'
-    contour1 = Contour(Input=calculator1)
-    contour1.ContourBy = ['POINTS', 'Vy']
+    contour1 = Contour(Input=testvtu)
+    contour1.ContourBy = ['POINTS', 'Pressure']
     contour1.PointMergeMethod = 'Uniform Binning'
     
     # show data in view
@@ -123,10 +118,10 @@ def drawContour(inpFile,outFile):
     
     # get color legend/bar for velocityLUT in view renderView1
     velocityLUTColorBar = GetScalarBar(velocityLUT, renderView1)
-    velocityLUTColorBar.Position = [0.9, 0.12047619047619049]
+    velocityLUTColorBar.Position = [0.85, 0.12047619047619049]
     velocityLUTColorBar.Position2 = [0.12, 0.7004761904761906]
-    velocityLUTColorBar.Title = 'Velocity'
-    velocityLUTColorBar.ComponentTitle = 'Y'
+    velocityLUTColorBar.Title = 'Pressure'
+    velocityLUTColorBar.ComponentTitle = None
     velocityLUTColorBar.TitleColor = [0.0, 0.0, 0.0]
     velocityLUTColorBar.LabelColor = [0.0, 0.0, 0.0]
     
@@ -145,11 +140,8 @@ def drawContour(inpFile,outFile):
     
     # current camera placement for renderView1
     renderView1.InteractionMode = '2D'
-    renderView1.LightSwitch = 0
-    renderView1.LightIntensity = 0.85
-
     renderView1.CameraPosition = [0.0, 0.0, 54.64101615137755]
-    renderView1.CameraParallelScale = 14.142135623730951
+    renderView1.CameraParallelScale = 1.5
     
     #### uncomment the following to render all views
     # RenderAllViews()

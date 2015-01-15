@@ -1,0 +1,15 @@
+#!/bin/bash
+
+
+
+ID=$1
+ERROR=$2
+OUT=$3
+CMD=$4
+
+CASE=$(dirname $CMD)
+BASE=$(basename $CMD)
+
+mv $OUT $CASE/ts-${BASE}.out
+echo $ERROR >ts-${BASE}.stat
+

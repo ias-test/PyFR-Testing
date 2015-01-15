@@ -10,19 +10,11 @@ class MkdirError(Exception):
     pass
 class ArchiveError(Exception):
     pass
+class MakeError(Exception):
+    pass
 class MoveError(Exception):
     pass
-class EnvError(Exception):
-    pass
-class InstallError(Exception):
-    pass
-class SymlinkError(Exception):
-    pass
-class LoadRunError(Exception):
-    pass
 
-class CreateRunError(Exception):
-    pass
 
 def execute(command,wd,ErrorClass,shell=False):
     print "executing :\033[31m"+" ".join(command)+"\033[0m at \033[33m",wd,"\033[0m"
@@ -52,27 +44,9 @@ def createArchive(tag):
         raise MoveError(str(e))
 
     execute(("tar","-z","-x","--file",tag),wd=wd+"/PyFR",ErrorClass=ArchiveError)
-
-    execute((virtualenv,"installRoot"),wd=wd,ErrorClass=EnvError)
-    with open(wd+"/installRoot/bin/activate","a")as fh:
-        fh.write("""function log()
-{
-    TAG=$1
-    DATE=$(date +%%Y-%%m-%%d_%%H:%%M:%%S)
-    echo "'$TAG':'$DATE'," >>%s/__log
-}
-
-"""%wd)
-    
-    try:
-        os.symlink("../../scripts/install",wd+"/install")
-        os.symlink("../../scripts/createRuns",wd+"/createRuns")
-        os.symlink("../../scripts/loadRuns",wd+"/loadRuns")
-    except Exception as e:
-        raise SymlinkError
-    execute(("./install",),wd=wd,ErrorClass=InstallError,shell=True)
-    execute(("./createRuns",),wd=wd,ErrorClass=CreateRunError,shell=True)
-    execute(("./loadRuns",),wd=wd,ErrorClass=LoadRunError,shell=True)
+    os.symlink("../../scripts/Makefile",wd+"/Makefile")
+    os.symlink("../../scripts/prepareAndSendReport",wd+"/prepareAndSendReport")
+    execute(("make","scheduleReportSend"),wd=wd,ErrorClass=MakeError,shell=True)
 
 
 if(__name__=="__main__"):

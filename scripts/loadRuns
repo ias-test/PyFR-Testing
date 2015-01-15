@@ -17,21 +17,21 @@ EXAMPLES=$(ls ${TEST_REPO})
 
 
 
-#log 'start-load-runs'
-#for e in ${EXAMPLES[@]}
-#do
-#	for p in ${PRECISION[@]}
-#	do
-#		for a in ${PLATFORMS[@]} 
-#		do
-#			for q in ${PARALLEL[@]}
-#			do
-#				ts $WD/tests/$e/$e-$p/$e-$p-$a/$e-$p-$a-$q/run
-#			done
-#		done
-#	done
-#done
-#log 'end-load-runs'
+log 'start-load-runs'
+for e in ${EXAMPLES[@]}
+do
+	for p in ${PRECISION[@]}
+	do
+		for a in ${PLATFORMS[@]} 
+		do
+			for q in ${PARALLEL[@]}
+			do
+				ts $WD/tests/$e/$e-$p/$e-$p-$a/$e-$p-$a-$q/run
+			done
+		done
+	done
+done
+log 'end-load-runs'
 log 'start-load-pp'
 for e in ${EXAMPLES[@]}
 do
@@ -41,7 +41,7 @@ do
 		do
 			for q in ${PARALLEL[@]}
 			do
-				ts $WD/tests/$e/$e-$p/$e-$p-$a/$e-$p-$a-$q/runPP $WD $e-$p-$a-$q
+				ts $WD/tests/$e/$e-$p/$e-$p-$a/$e-$p-$a-$q/postProcess
 			done
 		done
 	done

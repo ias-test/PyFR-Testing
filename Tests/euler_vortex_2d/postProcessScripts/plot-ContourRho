@@ -4,16 +4,11 @@
 #### import the simple module from the para view
 from paraview.simple import *              
 import numpy as np
+from common import getPalette
 
 def cmap(minV,maxV):
-    c=[[0.278431, 0.278431, 0.858824] ,
-            [0.0,      0.0,      0.360784] ,
-            [0.0,      1.0,      1.0] ,
-            [0.0,      0.501961, 0.0] ,
-            [1.0,      1.0,      0.0] ,
-            [1.0,      0.380392, 0.0] ,
-            [0.419608, 0.0,      0.0] ,
-            [0.878431, 0.301961, 0.301961]]
+    c=getPalette(minV,maxV)
+
     v=np.linspace(minV,maxV,len(c))
     v=v.reshape(len(c),1)
     c=np.array(c)
@@ -33,8 +28,8 @@ def drawContour(inpFile,outFile):
     # uncomment following to set a specific view size
     # renderView1.ViewSize = [969, 526]
 
-    minV=0.5
-    maxV=1.1
+    minV=0.52
+    maxV=1.
     N=11
     
     # show data in view
@@ -140,6 +135,9 @@ def drawContour(inpFile,outFile):
     
     # current camera placement for renderView1
     renderView1.InteractionMode = '2D'
+    renderView1.LightSwitch = 0
+    renderView1.LightIntensity = 0.85
+
     renderView1.CameraPosition = [0.0, 0.0, 54.64101615137755]
     renderView1.CameraParallelScale = 14.142135623730951
     

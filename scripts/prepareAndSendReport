@@ -3,14 +3,182 @@
 import os
 import ast
 import time
+import pprint
+import mako
+ROOT=os.path.dirname(os.path.realpath(os.path.abspath(__file__)))
 
+BACKENDS=[("OpenMP","CUDA","OpenCL"),1]
+SERIAL=[("serial","parallel"),len(BACKENDS[0])]
+PRECISION=[("dp","sp"),len(SERIAL[0])*len(BACKENDS[0])]
 
-timeLine={}
-with open('__log','r') as fh:
-    ds="{"+fh.read()+"}"
-    d=ast.literal_eval(ds)
+def readMainLog():
+    with open("__log","r") as fh:
+        log=[[ (k,int(time.mktime(time.strptime(v,"%Y-%m-%d_%H:%M:%S")))) for k,v in ast.literal_eval("{"+l.strip()+"}").iteritems()][0] for l in fh.readlines()]
 
-    for dd in d:
-        time.strptime(d[dd],"")
+    events=[]
+    logs=sorted(log,key=lambda x:x[1])
+    mint=logs[0][1]
+    for k,v in logs:
+        v-=mint
+        if k.startswith('begin'):
+            mode='b'
+            ev=k.replace('begin-','')
+        elif k.startswith('end'):
+            mode='e'
+            ev=k.replace('end-','')
+        else:
+            mode='i'
+            ev=k
+        
+        for i,t in events:
+            if i==ev:
+                if(mode=='b'):
+                    if(t[0] is not None):
+                        #print str(i)+":"+str(ev)+":"+str(k)+":"+str(v)
+                        break
+                    t[0]=v
+                    break
+                elif(mode=='e'):
+                    if(t[1] is not None):
+                        #print str(i)+":"+str(ev)+":"+str(k)+":"+str(v)
+                        break
+                    t[1]=v
+                    break
+                else:
+                    assert False
+        else:
+            if(mode=='b'):
+                events.append((ev,[v,None]))
+            elif(mode=='e'):
+                events.append((ev,[None,v]))
+            else:
+                events.append((ev,[v,v]))
+    return events
+
+def readInfo(tag):
+    with open("PyFR/_info","r") as fh:
+        info=ast.literal_eval(fh.read())
+
+    info['Submit-time']=time.ctime(os.path.getmtime("PyFR/"+tag))
+    return info
+        
+def readTestInfo():
+    import ConfigParser
+    tests={}
+    for i in os.listdir(ROOT+"/../Tests"):
+        config = ConfigParser.ConfigParser()
+        config.read([ROOT+"/../Tests/"+i+"/postProcessScripts/report.ini"])
+        tests[i]=config
+    return tests
+
+import hashlib
+def convert(ifile):
+    m = hashlib.md5()
+    m.update(ifile)
+    ofile="images/"+m.hexdigest()+".png"
+    if(os.path.exists("report/"+ofile)):
+        return ofile
+    print "processing ",ifile,'->',ofile
+    import subprocess
+    proc=subprocess.Popen(["convert",ifile,'-trim','-scale','30%%',"report/"+ofile])
+    proc.wait()
+    return ofile
     
+def readRunFiles(tests):
+    runInfo={}
+    for t in tests:
+        runInfo[t]={}
+        for root, dirs, files in os.walk('Tests'):
+            roots=root.replace("Tests/"+t+"/","")
+            if(t+".msh" in files):
+                runInfo[t][roots]={}
+                with open(root+"/sim.time","read") as fh:
+                    line=fh.readline()
+                    if(not len(line)):continue
+                    if(line[0]!='{'):
+                        flag=False
+                        line=fh.readline()
+                    else:
+                        flag=True
+                    line=line.strip().replace('%','')
+                    cfg=ast.literal_eval(line)
+                    cfg["flag"]=flag
+                    runInfo[t][roots]["cfg"]=cfg
+                    runInfo[t][roots]["files"]={}
 
+                    for s in tests[t].sections():
+                        items=tests[t].items(s)
+                        runInfo[t][roots]['files'][s]={}
+                        for title,f in items:
+                            if(os.path.exists(root+"/"+f)):
+                                runInfo[t][roots]['files'][s][title]=convert(root+"/"+f)
+                            else:
+                                runInfo[t][roots]['files'][s][title]=None
+    return runInfo
+
+
+
+def renderReport(log,info,tag,testInfo,runInfo):
+    from mako.template import Template
+    template=Template(filename=ROOT+'/report.tex',imports=('import math','import itertools'))
+    pprint.pprint(info)
+    if(not os.path.exists('report')):
+        os.mkdir('report')
+    if(not os.path.exists('report/images')):
+        os.mkdir('report/images')
+
+    fName="PyFR-report-%s"%tag
+    return fName+".pdf"
+    with open("report/"+fName+".tex","w") as fh:
+        fh.write(template.render(log=log,info=info,tag=tag,testInfo=testInfo,runInfo=runInfo,combinations=[PRECISION,SERIAL,BACKENDS]))
+    import shutil
+    shutil.copy(ROOT+"/logo.pdf","report")
+    import subprocess
+    proc=subprocess.Popen(["pdflatex","-interaction=nonstopmode",fName],cwd="report")
+    proc.wait()
+    return fName+".pdf"
+
+def sendReport(pdfName,info):
+
+    from email.mime.application import MIMEApplication
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.utils import COMMASPACE, formatdate
+    import smtplib
+
+
+    fromaddr = "testing@pyfr.org"
+    toaddr = info['Author-email']
+    subject="PyFR test report for commit %s"%info['Commit-hash-abbr']
+
+    msg = MIMEMultipart()
+    text="""<p style='font-family: serif; font-size:14pt;'>Dear Mr %s,</p><p style='font-family: serif; font-size:12pt; '>This is with 
+    regards to the PyFR test requested by you on %s for the commit <br/><p style='font-family: courier; font-size:12pt; font-style:bold'>%s</p>
+    <p style='font-family: serif; font-size:12pt;'>Please find the corresponding test report in the attachment. Hope you find it useful in developing 
+    PyFR further. <br/>Thank you for using this service,<br/><br/></p><hr/><p style='font-family: serif; font-size:12pt;'><b><i>PyFR testing system</i></b></p>"""%(info['Author-name'],info['Submit-time'],info['Commit-hash'])
+    msg.attach(MIMEText(text,'html'))
+
+    with open("report/"+pdfName) as fh:
+        fileMsg=MIMEApplication(fh.read())
+        fileMsg.add_header('Content-Disposition','attachment;filename=PyFR-Test-%s.pdf'%info['Commit-hash-abbr'])
+        msg.attach(fileMsg)
+
+    msg = ("From: %s\r\nTo: %s\r\nSubject:%s\r\n" % (fromaddr,toaddr,subject)+msg.as_string())
+
+
+    server=smtplib.SMTP_SSL('smtp.123-reg.co.uk')
+    server.login('testing@pyfr.org','!Pyfrtesting0')
+    #server.set_debuglevel(1)
+    print server.sendmail(fromaddr,toaddr,msg)
+    
+    
+if(__name__=="__main__"):
+    tag=os.path.basename(os.path.abspath('.'))
+    log=readMainLog()
+    info=readInfo(tag)
+    ti=readTestInfo()
+    ri=readRunFiles(ti)
+    print ri
+    pdfName=renderReport(log,info,tag,ti,ri)
+
+    sendReport(pdfName,info)

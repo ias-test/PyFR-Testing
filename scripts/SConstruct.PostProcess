@@ -1,0 +1,25 @@
+
+import os
+
+ROOT=os.path.dirname(os.path.dirname(os.path.abspath(os.path.realpath("./SConstruct"))))
+TEST=ROOT+"/Tests/"+os.environ["TEST"]
+
+PREFIX='source %(HOME)s/local/export.sh;source %(WD)s/installRoot/bin/activate;'%os.environ
+bld_vtu= Builder(action = PREFIX+'pyfr-postp convert  %(TEST)s.pyfrm $SOURCE  $TARGET'%os.environ,suffix='.vtu',src_suffix='.pyfrs')
+bldrs={'VTU' : bld_vtu}
+
+plotters=[ l.replace('plot-','') for l in os.listdir(TEST+"/postProcessScripts/") if l.startswith('plot-')]
+for p in plotters:
+	bldrs[p]=Builder(action=PREFIX+TEST+'/postProcessScripts/plot-'+p+" -i $SOURCE -o $TARGET")
+
+
+env = Environment(BUILDERS = bldrs )
+
+sols_list=[ l for l in os.listdir('.') if l.endswith('.pyfrs')]
+for s in sols_list:
+	env.VTU(s.replace('.pyfrs','.vtu'),s)
+	Depends(s.replace('.pyfrs','.vtu'),s)
+	for p in plotters:
+		PP=getattr(env,p)
+		PP(p+"-"+s.replace('.pyfrs','.png'),s.replace('.pyfrs','.vtu'))
+		Depends(p+"-"+s.replace('.pyfrs','.png'),s.replace('.pyfrs','.vtu'))

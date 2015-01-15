@@ -1,0 +1,31 @@
+#!/bin/bash
+
+TEST=$1
+BACKEND=$2
+SERIAL=$3
+PRECISION=$4
+TAG=$TEST-$BACKEND-$SERIAL-$PRECISION
+
+
+CBLAS='/usr/lib64/libcblas.so'
+
+ROOT=$(dirname $(readlink -f $0))
+TESTDIR=${ROOT}/../Tests
+
+WD=$PWD
+
+iniFile=${TESTDIR}/${TEST}/${TEST}.ini
+
+M=""
+if [ $PRECISION == "dp" ];then
+	M="$M;s/^precision.*/precision = double/"
+else
+	M="$M;s/^precision.*/precision = single/"
+fi
+
+if [ ${BACKEND} == "OpenMP" ];then
+	M="$M;""s_.*cblas-st.*_cblas-st = ${CBLAS}_"
+fi
+
+
+sed "$M" ${iniFile}

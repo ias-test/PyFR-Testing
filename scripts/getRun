@@ -2,65 +2,77 @@
 
 
 
-EXAMPLE=$1
-PRECISION=$2
-PLATFORM=$3
-PARALLEL=$4
-TAG=$5
-WD=$6
+TEST=$1
+BACKEND=$2
+SERIAL=$3
+PRECISION=$4
+TAG=$TEST-$BACKEND-$SERIAL-$PRECISION
+
+WD=$PWD
 
 NP=2
 
 echo -e "#!/bin/bash\n\n\n"
-echo -e ". ${WD}/installRoot/bin/activate\n\n" 
+echo -e ". ${WD}/installRoot/bin/activate\n\n"
+cat <<EOF
+function log()
+{
+	TAG=\$1
+	DATE=\$(date +%Y-%m-%d_%H:%M:%S)
+    	echo "'\$TAG':'\$DATE'," >>$WD/__log
+}
+EOF
 
 echo 'CASE=$(dirname $(readlink -f $0))'
 echo 'cd $CASE'
-if [ ${PARALLEL} == "serial" ];then
+echo 'touch __status'
+if [ ${SERIAL} == "serial" ];then
 	echo "log 'begin-mesh-conv $TAG'"
-	echo "$(which pyfr-mesh) convert ${TAG}.msh ${TAG}.pyfrm 1>>mesh-imp.log 2>mesh-imp.err"
+	echo "$(which pyfr-mesh) convert ${TEST}.msh ${TEST}.pyfrm 1>>mesh-imp.log 2>mesh-imp.err"
 cat <<EOF
 if [ \$? -ne 0 ];then
-	echo "Mesh convert error" >&2
+	echo "Mesh convert error" >__status
 	exit 1
 fi
 EOF
 	echo "log 'end-mesh-conv $TAG'"
 	echo "log 'begin-simulation $TAG'"
-	echo "/usr/bin/time --format \"{'elapsed':%e,'kernel-time':%S,'user-time':%U,'CPU-percent': %P,'MaxMemory':%M, 'AverageMemory':%K }\" -o sim.time $(which pyfr-sim) -v -n 10 -b $PLATFORM run  ${TAG}.pyfrm ${TAG}.ini 1>sim.log 2>sim.err"
+	echo "/usr/bin/time --format \"{'elapsed':%e,'kernel-time':%S,'user-time':%U,'CPU-percent': %P,'MaxMemory':%M, 'AverageMemory':%K }\" -o sim.time $(which pyfr-sim) -v -n 10 -b $BACKEND run  ${TEST}.pyfrm ${TEST}.ini 1>sim.log 2>sim.err"
 cat <<EOF
 if [ \$? -ne 0 ];then
-	echo "Simulation error" >&2
+	echo "Simulation error" >__status
 	exit 1
 fi
 EOF
 	echo "log 'end-simulation $TAG'"
 else
 	echo "log 'begin-mesh-conv $TAG'"
-	echo "$(which pyfr-mesh) convert ${TAG}.msh ${TAG}.pyfrm 1>mesh-imp.log 2>mesh-imp.err"
+	echo "$(which pyfr-mesh) convert ${TEST}.msh ${TEST}.pyfrm 1>mesh-imp.log 2>mesh-imp.err"
 cat <<EOF
 if [ \$? -ne 0 ];then
-	echo "Mesh convert error" >&2
+	echo "Mesh convert error" >__status
 	exit 1
 fi
 EOF
 	echo "log 'end-mesh-conv $TAG'"
 	echo "log 'begin-mesh-part $TAG'"
-	echo "$(which pyfr-mesh) partition $NP ${TAG}.pyfrm . 1>mesh-part.log 2>mesh-part.err"
+	echo "$(which pyfr-mesh) partition $NP ${TEST}.pyfrm . 1>mesh-part.log 2>mesh-part.err"
 cat <<EOF
 if [ \$? -ne 0 ];then
-	echo "Mesh partition error" >&2
+	echo "Mesh partition error" >__status
 	exit 1
 fi
 EOF
 	echo "log 'end-mesh-part $TAG'"
 	echo "log 'begin-simulation $TAG'"
-	echo "/usr/bin/time --format \"{'elapsed':%e,'kernel-time':%S,'user-time':%U,'CPU-percent': %P,'MaxMemory':%M, 'AverageMemory':%K }\" -o sim.time mpirun -np $NP $(which pyfr-sim) -v -n 10 -b $PLATFORM run ${TAG}.pyfrm ${TAG}.ini 1>sim.log 2>sim.err "
+	echo "/usr/bin/time --format \"{'elapsed':%e,'kernel-time':%S,'user-time':%U,'CPU-percent': %P,'MaxMemory':%M, 'AverageMemory':%K }\" -o sim.time mpirun -np $NP $(which pyfr-sim) -v -n 10 -b $BACKEND run ${TEST}.pyfrm ${TEST}.ini 1>sim.log 2>sim.err "
 cat <<EOF
 if [ \$? -ne 0 ];then
-	echo "Simulation error" >&2
+	echo "Simulation error" >__status
+	cat sim.err
 	exit 1
 fi
 EOF
 	echo "log 'end-simulation $TAG'"
 fi
+echo "touch \$1"
